@@ -1,0 +1,61 @@
+import random
+import requests
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
+
+API_KEY = 'ВАШ_API_TOKEN_ЗДЕСЬ'
+
+# Функция для получения случайного фильма из TMDb
+def get_random_movie(genre_id):
+    search_url = f'https://api.themoviedb.org/3/discover/movie?api_key={API_KEY}&with_genres={genre_id}'
+    response = requests.get(search_url).json()
+
+    if 'results' in response and len(response['results']) > 0:
+        random_film = random.choice(response['results'])
+        title = random_film['title']
+        link = f'https://www.themoviedb.org/movie/{random_film["id"]}'
+        return {"name": title, "link": link}
+    return None
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [[InlineKeyboardButton("Мелодрама", callback_data="18"),  # Genre ID for Drama
+                 InlineKeyboardButton("Комедия", callback_data="35"),  # Genre ID for Comedy
+                 InlineKeyboardButton("Трагедия", callback_data="18"),  # Трагедия (Неизменен ID)
+                 InlineKeyboardButton("Военная драма", callback_data="10752"),  # Genre ID for War
+                 InlineKeyboardButton("Исторический фильм", callback_data="36"),  # Genre ID for History
+                 InlineKeyboardButton("Вестерн", callback_data="37"),  # Genre ID for Western
+                 InlineKeyboardButton("Боевик", callback_data="28"),  # Genre ID for Action
+                 InlineKeyboardButton("Фантастический фильм", callback_data="878"),  # Genre ID for Science Fiction
+                 InlineKeyboardButton("Фэнтези", callback_data="14"),  # Genre ID for Fantasy
+                 InlineKeyboardButton("Триллер", callback_data="53"),  # Genre ID for Thriller
+                 InlineKeyboardButton("Детектив", callback_data="80")] # Genre ID for Mystery         
+                ]
+                
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text("Выберите жанр фильма:", reply_markup=reply_markup)
+
+async def genre_chosen(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    genre_id = query.data
+
+    movie_info = get_random_movie(genre_id)
+
+    await query.answer()  # Отвечаем на callback_query
+    if movie_info:
+        await query.edit_message_text(
+            text=f"Вот случайный фильм в этом жанре: {movie_info['name']}\nСсылка: {movie_info['link']}"
+        )
+    else:
+        await query.edit_message_text(text="Не удалось найти фильмы в этом жанре.")
+
+def main():
+    app = ApplicationBuilder().token("7660156805:AAFHgeWwPuhApd32hYfi3okL0_M6wB-cf4Y").build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(genre_chosen))
+
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
